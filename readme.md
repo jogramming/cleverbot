@@ -1,0 +1,1 @@
+Simple cleverbot wrapper, see the source for how to use

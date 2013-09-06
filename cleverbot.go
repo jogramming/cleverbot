@@ -84,7 +84,7 @@ func (s *Session) Ask(q string) (string, error) {
 	s.values.Set("stimulus", q)
 
 	enc_data := s.values.Encode()
-	digest_txt := enc_data[9:29]
+	digest_txt := enc_data[9:35]
 	tokenMd5 := md5.New()
 	io.WriteString(tokenMd5, digest_txt)
 	tokenbuf := hexDigest(tokenMd5)

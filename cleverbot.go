@@ -1,3 +1,6 @@
+// Very simple go cleverbot wrapper
+// To get a new session call New() and to ask call Session.Ask(question)
+// See example/main.go for an example
 package cleverbot
 
 import (
@@ -35,6 +38,7 @@ type Session struct {
 	values *url.Values
 }
 
+// Creates a new session
 func New() *Session {
 	values := &url.Values{}
 
@@ -68,6 +72,8 @@ func New() *Session {
 		values,
 	}
 }
+
+// Ask cleverbot a question
 func (s *Session) Ask(q string) (string, error) {
 
 	if len(s.Messages) > 0 {

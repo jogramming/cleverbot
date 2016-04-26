@@ -1,1 +1,3 @@
-Simple cleverbot wrapper, see the source for how to use
+##cleverbot
+
+Very simple cleverbot wrapper for go https://godoc.org/github.com/jonas747/cleverbot

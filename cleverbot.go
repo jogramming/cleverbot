@@ -92,21 +92,24 @@ func (s *Session) Ask(q string) (string, error) {
 
 	enc_data := s.values.Encode()
 
-	fmt.Printf(string(enc_data[9:35]))
+	// A hash of part of the payload, cleverbot needs this for some reason
 	digest_txt := enc_data[9:35]
 	tokenMd5 := md5.New()
 	io.WriteString(tokenMd5, digest_txt)
 	tokenbuf := hexDigest(tokenMd5)
 	token := tokenbuf.String()
-	s.values.Set("icognocheck", token)
 
+	// Set the check and re-encode
+	s.values.Set("icognocheck", token)
 	enc_data = s.values.Encode()
 
+	// Make the actual request
 	req, err := http.NewRequest("POST", API_URL, strings.NewReader(enc_data))
 	if err != nil {
 		return "", err
 	}
 
+	// Headers and a cookie, which cleverbot again will not work without
 	req.Header.Set("User-Agent", "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0)")
 	req.Header.Set("Content-Type", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Host", HOST)
@@ -129,6 +132,7 @@ func (s *Session) Ask(q string) (string, error) {
 		return "", err
 	}
 
+	// Process the response
 	answer := ""
 	for i, by := range body {
 		if by == byte(13) {
@@ -138,6 +142,7 @@ func (s *Session) Ask(q string) (string, error) {
 		}
 	}
 
+	// Append to message history if sucessfull
 	s.Messages = append(s.Messages, q)
 	s.Messages = append(s.Messages, answer)
 	return answer, nil

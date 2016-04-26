@@ -7,6 +7,7 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -99,6 +100,7 @@ func (s *Session) Ask(q string) (string, error) {
 
 	req.Header.Set("User-Agent", "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0)")
 	req.Header.Set("Content-Type", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	//req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
 	req.Header.Set("Host", HOST)
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
@@ -106,6 +108,11 @@ func (s *Session) Ask(q string) (string, error) {
 	req.Header.Set("Accept-Language", "en-us,en;q=0.8,en-us;q=0.5,en;q=0.3")
 	req.Header.Set("Referer", PROTOCOL+HOST+"/")
 	req.Header.Set("Pragma", "no-cache")
+	req.Header.Set("Cookie", "XVIS=TEI939AFFIAGAYQZ")
+	// req.AddCookie(&http.Cookie{
+	// 	Name:  "XVIS",
+	// 	Value: "TEI939AFFIAGAYQZ",
+	// })
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -118,9 +125,12 @@ func (s *Session) Ask(q string) (string, error) {
 		return "", err
 	}
 
+	log.Println(string(body))
+	log.Println(API_URL)
+
 	answer := ""
-	for i, by := range body {
-		if by == byte(13) {
+	for i, b := range body {
+		if b == byte(13) {
 			res := body[:i]
 			answer = string(res)
 			break

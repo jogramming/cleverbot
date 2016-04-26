@@ -75,7 +75,7 @@ func New() *Session {
 
 // Ask cleverbot a question
 func (s *Session) Ask(q string) (string, error) {
-
+	// Construct the history that start at vText2 and goes to vText8
 	if len(s.Messages) > 0 {
 		lineCount := 1
 		for i := len(s.Messages) - 1; i >= 0; i-- {
@@ -87,15 +87,19 @@ func (s *Session) Ask(q string) (string, error) {
 		}
 	}
 
+	// The question
 	s.values.Set("stimulus", q)
 
 	enc_data := s.values.Encode()
+
+	fmt.Printf(string(enc_data[9:35]))
 	digest_txt := enc_data[9:35]
 	tokenMd5 := md5.New()
 	io.WriteString(tokenMd5, digest_txt)
 	tokenbuf := hexDigest(tokenMd5)
 	token := tokenbuf.String()
 	s.values.Set("icognocheck", token)
+
 	enc_data = s.values.Encode()
 
 	req, err := http.NewRequest("POST", API_URL, strings.NewReader(enc_data))

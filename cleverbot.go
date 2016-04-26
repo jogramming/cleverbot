@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-const (
+var (
 	HOST     = "www.cleverbot.com"
 	PROTOCOL = "http://"
 	RESOURCE = "/webservicemin"
@@ -34,7 +34,7 @@ func hexDigest(hash hash.Hash) bytes.Buffer {
 type Session struct {
 	Messages []string
 
-	client *http.Client
+	Client *http.Client
 	values *url.Values
 }
 
@@ -114,7 +114,7 @@ func (s *Session) Ask(q string) (string, error) {
 	req.Header.Set("Pragma", "no-cache")
 	req.Header.Set("Cookie", "XVIS=TEI939AFFIAGAYQZ")
 
-	resp, err := s.client.Do(req)
+	resp, err := s.Client.Do(req)
 	if err != nil {
 		return "", err
 	}

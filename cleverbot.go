@@ -10,7 +10,9 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strconv"
 	"strings"
@@ -35,46 +37,56 @@ type Session struct {
 	Messages []string
 
 	Client *http.Client
-	values *url.Values
+	ConvId string // Conversation id
+
+	values        *url.Values
+	firstQuestion bool
 }
 
 // Creates a new session
 func New() *Session {
 	values := &url.Values{}
 
-	values.Set("stimulus ", "")
-	values.Set("start", "y") // Never modified
-	values.Set("sessionid", "")
-	values.Set("vText8", "")
-	values.Set("vText7", "")
-	values.Set("vText6", "")
-	values.Set("vText5", "")
-	values.Set("vText4", "")
-	values.Set("vText3", "")
-	values.Set("vText2", "")
+	//svalues.Set("stimulus ", "")
+	//values.Set("start", "y") // Never modified
 	values.Set("icognoid", "wsf") // Never modified
-	values.Set("icognocheck", "")
-	values.Set("fno", "0") //) Never modified
-	values.Set("prevref", "")
-	values.Set("emotionaloutput", "")  // Never modified
-	values.Set("emotionalhistory", "") // Never modified
-	values.Set("asbotname", "")        // Never modified
-	values.Set("ttsvoice", "")         // Never modified
-	values.Set("typing", "")           // Never modified
-	values.Set("lineref", "")
-	values.Set("sub", "Say")          // Never modified
-	values.Set("islearning", "1")     //) Never modified
-	values.Set("cleanslate", "false") // Never modified
+	//values.Set("fno", "0")        //) Never modified
+	//values.Set("prevref", "")
+	//values.Set("emotionaloutput", "")  // Never modified
+	//values.Set("emotionalhistory", "") // Never modified
+	//values.Set("asbotname", "")        // Never modified
+	//values.Set("ttsvoice", "") // Never modified
+	//values.Set("typing", "")           // Never modified
+	//values.Set("lineref", "")
+	//values.Set("sub", "Say")          // Never modified
+	values.Set("islearning", "1") //) Never modified
+	//values.Set("cleanslate", "false") // Never modified
+
+	values.Set("uc", "255")
+
+	// http: //www.cleverbot.com/webservicemin?uc=255&out=No%205.&in=Ahh%20okay.&bot=c&cbsid=WXAL8WA7MO&xai=WXA&ns=2&al=&dl=it&flag=&user=&mode=1&alt=0&reac=&emo=&t=167133&
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{
+		Jar: jar,
+	}
+
+	path, _ := url.Parse("http://www.cleverbot.com")
+	jar.SetCookies(path, []*http.Cookie{
+		&http.Cookie{Name: "XVIS", Value: "TEI939AFFIAGAYQZ"},
+		&http.Cookie{Name: "XAI", Value: "WXE"},
+	})
 
 	return &Session{
-		make([]string, 0),
-		&http.Client{},
-		values,
+		Messages: make([]string, 0),
+		Client:   client,
+
+		values:        values,
+		firstQuestion: true,
 	}
 }
 
 // Ask cleverbot a question
-func (s *Session) Ask(q string) (string, error) {
+func (s *Session) Ask(question string) (string, error) {
 	// Construct the history that start at vText2 and goes to vText8
 	if len(s.Messages) > 0 {
 		lineCount := 1
@@ -88,12 +100,12 @@ func (s *Session) Ask(q string) (string, error) {
 	}
 
 	// The question
-	s.values.Set("stimulus", q)
+	s.values.Set("stimulus", question)
 
-	enc_data := s.values.Encode()
+	payload := s.values.Encode()
 
 	// A hash of part of the payload, cleverbot needs this for some reason
-	digest_txt := enc_data[9:35]
+	digest_txt := payload[9:35]
 	tokenMd5 := md5.New()
 	io.WriteString(tokenMd5, digest_txt)
 	tokenbuf := hexDigest(tokenMd5)
@@ -101,10 +113,12 @@ func (s *Session) Ask(q string) (string, error) {
 
 	// Set the check and re-encode
 	s.values.Set("icognocheck", token)
-	enc_data = s.values.Encode()
+	payload = s.values.Encode()
 
 	// Make the actual request
-	req, err := http.NewRequest("POST", API_URL, strings.NewReader(enc_data))
+	url := s.GenerateRequestURL(question)
+	log.Println("Asking", url, "Data:", payload)
+	req, err := http.NewRequest("POST", url, strings.NewReader(payload))
 	if err != nil {
 		return "", err
 	}
@@ -119,31 +133,65 @@ func (s *Session) Ask(q string) (string, error) {
 	req.Header.Set("Accept-Language", "en-us,en;q=0.8,en-us;q=0.5,en;q=0.3")
 	req.Header.Set("Referer", PROTOCOL+HOST+"/")
 	req.Header.Set("Pragma", "no-cache")
-	req.Header.Set("Cookie", "XVIS=TEI939AFFIAGAYQZ")
+	//req.Header.Set("Cookie", "XVIS=TEI939AFFIAGAYQZ")
+	//req.Header.Set("Cookie", "XAI=WXE")
 
 	resp, err := s.Client.Do(req)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	return s.HandleResponse(resp, question)
+}
 
+func (s *Session) GenerateRequestURL(question string) string {
+	vals := &url.Values{}
+	vals.Add("uc", "255")
+
+	if s.firstQuestion {
+		return API_URL + "?" + vals.Encode()
+	}
+
+	out := ""
+	if len(s.Messages) > 1 {
+		out = s.Messages[len(s.Messages)-1]
+	}
+	vals.Add("out", out)
+	vals.Add("in", question)
+	vals.Add("bot", "c")
+	vals.Add("cbsid", s.ConvId)
+	vals.Add("xai", "WXE")
+	return API_URL + "?" + vals.Encode()
+}
+
+func (s *Session) HandleResponse(resp *http.Response, question string) (string, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
-	// Process the response
-	answer := ""
-	for i, by := range body {
-		if by == byte(13) {
-			res := body[:i]
-			answer = string(res)
-			break
-		}
+	if resp.StatusCode > 299 || resp.StatusCode < 200 {
+		return "", fmt.Errorf("Request failed status code: %d, body: %s", resp.StatusCode, string(body))
 	}
 
+	s.ConvId = resp.Header.Get("CBCONVID")
+	log.Println("Conversation id is", s.ConvId)
+	s.values.Set("sessionid", s.ConvId)
+
+	// Process the response
+	answer := resp.Header.Get("CBOUTPUT")
+	// for i, by := range body {
+	// 	if by == byte(13) {
+	// 		res := body[:i]
+	// 		answer = string(res)
+	// 		break
+	// 	}
+	// }
+
 	// Append to message history if sucessfull
-	s.Messages = append(s.Messages, q)
+	s.Messages = append(s.Messages, question)
 	s.Messages = append(s.Messages, answer)
+
+	s.firstQuestion = false
+
 	return answer, nil
 }

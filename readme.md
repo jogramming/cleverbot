@@ -1,3 +1,3 @@
-##cleverbot
+##THIS IS DEAD
 
-Very simple cleverbot wrapper for go https://godoc.org/github.com/jonas747/cleverbot
+This package is better and actually works: https://github.com/ugjka/cleverbot-go/
